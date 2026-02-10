@@ -1,0 +1,21 @@
+/*
+ * @generated-file-note
+ * 文件：smart-tools-frontend/src/styles/index.css
+ * 用途：样式文件
+ * 归属：前端 styles
+ * 说明：该文件为项目组成部分，修改前确认引用关系与影响范围
+ */
+/*
+  全局样式入口：
+  - 引入 Tailwind 的 base/components/utilities
+  - 放置少量全局布局样式（尽量避免写大量全局覆盖，优先用组件内 class）
+*/
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html,
+body,
+#app {
+  height: 100%;
+}

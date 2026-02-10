@@ -1,0 +1,96 @@
+# @generated-file-note
+# 文件：smart-tools-backend/smart-tools-api/src/main/resources/application-mysql.yml
+# 用途：Spring Boot 的 mysql profile 配置（外部依赖：MySQL/Redis/RabbitMQ/SMTP/微信登录）
+# 归属：后端 smart-tools-api
+# 分层：resources
+# 顶层键：spring、app、wxlogin
+# 环境变量：REDIS_HOST、REDIS_PORT、REDIS_PASSWORD、REDIS_DB、REDIS_TIMEOUT、RABBITMQ_HOST、RABBITMQ_PORT、RABBITMQ_USERNAME、RABBITMQ_PASSWORD、MAIL_HOST、MAIL_PORT、MAIL_USERNAME、MAIL_PASSWORD、MAIL_SMTP_CONNECTION_TIMEOUT、MAIL_SMTP_TIMEOUT、MAIL_SMTP_WRITE_TIMEOUT、MAIL_SMTP_SSL_ENABLE、MAIL_SMTP_SSL_PROTOCOLS
+# 约束：敏感配置仅允许通过环境变量注入，禁止写死到仓库
+# 维护：新增配置项时保持与 README 的环境变量说明同步
+spring:
+  autoconfigure:
+    exclude: org.springframework.boot.autoconfigure.security.servlet.UserDetailsServiceAutoConfiguration
+  h2:
+    console:
+      enabled: false
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      database: ${REDIS_DB:0}
+      timeout: ${REDIS_TIMEOUT:3s}
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USERNAME:}
+    password: ${RABBITMQ_PASSWORD:}
+  mail:
+    host: ${MAIL_HOST:smtp.qq.com}
+    port: ${MAIL_PORT:587}
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          connectiontimeout: ${MAIL_SMTP_CONNECTION_TIMEOUT:10000}
+          timeout: ${MAIL_SMTP_TIMEOUT:10000}
+          writetimeout: ${MAIL_SMTP_WRITE_TIMEOUT:10000}
+          ssl:
+            enable: ${MAIL_SMTP_SSL_ENABLE:false}
+            protocols: ${MAIL_SMTP_SSL_PROTOCOLS:TLSv1.2}
+          starttls:
+            enable: ${MAIL_SMTP_STARTTLS_ENABLE:true}
+            required: ${MAIL_SMTP_STARTTLS_REQUIRED:true}
+          localhost: ${MAIL_SMTP_LOCALHOST:}
+        debug: ${MAIL_DEBUG:false}
+  mail-from: ${MAIL_FROM:${MAIL_USERNAME:}}
+  datasource:
+    # 数据库连接（建议使用环境变量覆盖默认值）
+
+    url: ${MYSQL_URL:jdbc:mysql://localhost:3306/smart_tools?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Shanghai&characterEncoding=utf8}
+    username: ${MYSQL_USERNAME:root}
+    password: ${MYSQL_PASSWORD:}
+    hikari:
+      # 连接池配置（可按压测结果调整）
+      maximum-pool-size: ${MYSQL_POOL_MAX_SIZE:50}
+      minimum-idle: ${MYSQL_POOL_MIN_IDLE:10}
+      connection-timeout: ${MYSQL_POOL_CONNECTION_TIMEOUT:30000}
+      idle-timeout: ${MYSQL_POOL_IDLE_TIMEOUT:600000}
+      max-lifetime: ${MYSQL_POOL_MAX_LIFETIME:1800000}
+  jpa:
+    hibernate:
+      ddl-auto: update
+  sql:
+    init:
+      # MySQL 环境通常使用手工/迁移工具建表，这里关闭 schema.sql 自动初始化
+      mode: never
+
+app:
+  otp:
+    # 是否将 OTP 打印到日志（仅限开发排查；生产环境建议关闭）
+    log-code: ${OTP_LOG_CODE:false}
+    ttl-seconds: ${OTP_TTL_SECONDS:60}
+    # OTP 存储介质：redis / memory（按实现支持范围配置）
+    store: ${OTP_STORE:redis}
+    # OTP 发送方式：rabbit / email（按实现支持范围配置）
+    delivery: ${OTP_DELIVERY:rabbit}
+  risk:
+    enabled: ${RISK_ENABLED:true}
+    global-requests-per-minute: ${GLOBAL_REQUESTS_PER_MINUTE:600}
+    device-requests-per-minute: ${DEVICE_REQUESTS_PER_MINUTE:300}
+    auth-requests-per-minute: ${AUTH_REQUESTS_PER_MINUTE:120}
+    window-cache-max-entries: ${WINDOW_CACHE_MAX_ENTRIES:200000}
+    window-cleanup-every-requests: ${WINDOW_CLEANUP_EVERY_REQUESTS:2000}
+    otp-send-cooldown-seconds: ${OTP_SEND_COOLDOWN_SECONDS:60}
+  captcha:
+    # 图形验证码存储介质：redis / memory（按实现支持范围配置）
+    store: ${CAPTCHA_STORE:redis}
+
+wxlogin:
+  # 微信登录配置
+  # 沙箱测试：登录 https://mp.weixin.qq.com/debug/cgi-bin/sandboxinfo?action=showinfo&t=sandbox/index 获取
+  # 注意：本地开发(localhost)无法接收微信回调，需使用内网穿透(ngrok/frp)配置回调URL
+  app-id: ${WXLOGIN_APP_ID:}
+  app-secret: ${WXLOGIN_APP_SECRET:}

@@ -1,0 +1,23 @@
+/**
+ * @generated-file-note
+ * 文件：smart-tools-backend/smart-tools-tools/src/main/java/com/example/smarttools/modules/tools/feature/network/package-info.java
+ * 用途：后端 Java 源码文件（Spring Boot 模块）
+ * 归属：后端 smart-tools-tools
+ * 分层：general
+ * 职责：提供可复用的后端能力，供 Controller/Service 等注入调用
+ * 数据：避免在日志/异常中输出口令、token、验证码、个人敏感信息等
+ * 维护：修改对外行为时同步更新对应的接口/配置/测试
+ */
+/**
+ * 网络类工具（Network）。
+ *
+ * 典型工具示例：IP 查询、CIDR 计算、DNS 查询、端口探测、Ping/Traceroute 等。
+ *
+ * 安全建议：
+ * 
+ *   涉及外部网络访问的功能必须做域名/IP 白名单或隔离网络出口，避免 SSRF。
+ *   设置严格超时与并发限制，防止被当作扫描器滥用。
+ * 
+ */
+package com.example.smarttools.modules.tools.feature.network;
+

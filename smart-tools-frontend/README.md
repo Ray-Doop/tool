@@ -1,60 +1,234 @@
-<!--
-  @generated-file-note
-  文件：smart-tools-frontend/README.md
-  用途：说明文档
-  归属：前端 frontend
-  用途：项目说明/设计文档
-  维护：与代码/配置变更保持一致，避免文档与实现脱节
--->
-# Smart Tools Frontend (Vue CLI)
+# Smart Tools Frontend
 
-## 安装依赖
+基于 Vue 3 + Vue CLI（@vue/cli-service 5）实现的前端 SPA，提供工具列表、工具详情、用户中心与管理后台等能力。整体采用“工具插件化”架构：每个工具一个独立目录，通过约定（`meta.js` + `index.vue`）自动注册到工具列表与路由。
 
-在 [package.json](file:///c:/Users/30274/Desktop/xxm/test_vue/package.json) 更新后，执行：
+## 主要功能
+
+- 工具目录：分类筛选、搜索、热门/新增推荐
+- 工具详情页：动态加载工具组件、点赞/收藏、评论/回复
+- 登录体系：验证码登录、密码登录、微信扫码登录（含开发模式模拟扫码）
+- 用户中心：个人信息、设置、收藏（未登录时本地收藏，登录后与后端同步）
+- 管理后台：用户/角色/权限/工具等管理页面入口（需要管理员权限）
+
+## 技术栈
+
+- Vue 3、Vue Router 4、Pinia 2
+- Vue CLI 5（webpack）、Babel、ESLint
+- UI：Element Plus、TailwindCSS
+- 网络：Axios（统一拦截器、自动注入 token、401 自动刷新）
+- 工具能力（按需使用）：ECharts、Mermaid、FFmpeg.wasm、pdf-lib、pdfjs-dist、xlsx、tesseract.js 等
+
+## 核心设计（读代码入口）
+
+- 工具注册中心：[registry.js](smart-tools-frontend/src/tools/registry.js)
+  - 自动扫描 `src/tools/**/meta.js` 与 `src/tools/**/index.vue` 进行注册（`require.context`）
+  - 输出的每个工具对象包含：`slug/name/category/description/keywords/enabled/sortOrder/component`
+- 工具目录 Store：[toolCatalog.js](smart-tools-frontend/src/store/toolCatalog.js)
+  - 首次加载使用本地注册中心 `toolRegistry.list()`（离线也可用）
+  - 再异步拉取后端 `/api/tools` 覆盖名称/分类/上下线/排序等（不会引入未知前端组件）
+- 鉴权与刷新：[auth store](smart-tools-frontend/src/store/auth.js) + [http.js](smart-tools-frontend/src/api/http.js)
+  - token 默认只放内存；用户信息持久化到 `localStorage`
+  - `http` 请求拦截器自动加 `Authorization: Bearer <token>`
+  - 遇到 401 会自动走 `/api/auth/refresh` 刷新并重试（排除 `/api/auth/**` 自身）
+- 路由与守卫：[router](smart-tools-frontend/src/router/index.js)
+  - `/tools/:slug`、`/profile`、`/settings`、`/admin/**` 均需要登录
+  - 管理后台页面额外要求 `user.isAdmin`
+- 错误上报：[main.js](smart-tools-frontend/src/main.js)
+  - Vue error/window error/unhandledrejection 会上报到 `/api/logs/error`
+
+## 目录结构
+
+```text
+smart-tools-frontend/
+  public/                 # HTML 模板与静态资源
+  src/
+    api/                  # 后端 API 封装（axios）
+    components/           # 通用组件
+    composables/          # 组合式函数（hooks）
+    i18n/                 # 文案/国际化
+    layouts/              # 布局（App/Admin）
+    pages/                # 页面（路由级）
+    router/               # 路由与守卫
+    store/                # Pinia 状态
+    styles/               # 全局样式
+    tools/                # 具体工具模块（按 slug 组织）
+  vue.config.js           # Vue CLI 配置（端口、代理、标题等）
+```
+
+## 前端模块说明（按目录）
+
+- 应用入口（启动/全局能力）
+  - [main.js](smart-tools-frontend/src/main.js)：挂载 Pinia/Router/Element Plus，启动时做 `silentRefresh()`，并把运行时异常上报到 `/api/logs/error`
+- 网络层（所有接口的统一入口）
+  - [http.js](smart-tools-frontend/src/api/http.js)：Axios 实例 + 请求注入 `Authorization` + 401 自动刷新并重试
+  - `src/api/*.js`：按领域拆分的 API 封装（只负责请求与解析，不持久化状态）
+    - [auth.js](smart-tools-frontend/src/api/auth.js)：登录/注册/OTP/微信/refresh
+    - [me.js](smart-tools-frontend/src/api/me.js)：个人信息/设置/收藏/上传头像等
+    - [tools.js](smart-tools-frontend/src/api/tools.js)：工具目录、统计、点赞、评论等
+- 状态层（Pinia，承载业务状态与业务动作）
+  - [auth store](smart-tools-frontend/src/store/auth.js)：token（内存）+ user（localStorage）+ 登录/刷新/退出等动作
+  - [toolCatalog store](smart-tools-frontend/src/store/toolCatalog.js)：工具目录（本地注册中心 + 服务端覆盖）
+  - [favorites store](smart-tools-frontend/src/store/favorites.js)：未登录本地收藏、登录后与后端同步
+  - [app store](smart-tools-frontend/src/store/app.js)：全局设置（如语言）
+- 路由层（页面入口与权限控制）
+  - [router/index.js](smart-tools-frontend/src/router/index.js)：路由表 + `beforeEach` 守卫（需要登录/管理员）
+- 布局层（页面骨架与全局 UI）
+  - [AppLayout.vue](smart-tools-frontend/src/layouts/AppLayout.vue)：顶栏/分类侧栏/搜索；通过 query `?login=1` 自动弹出登录弹窗；登录成功后按 `redirect` 回跳
+  - `src/layouts/AdminLayout.vue`：后台布局（如存在管理后台独立骨架）
+- 页面层（路由级容器，拼装 store + 组件 + API）
+  - [HomePage.vue](smart-tools-frontend/src/pages/HomePage.vue)：工具列表（筛选/搜索/热门/新增）
+  - [ToolPage.vue](smart-tools-frontend/src/pages/ToolPage.vue)：根据 `slug` 动态渲染工具组件，并承载点赞/收藏/评论 UI
+  - `src/pages/admin/*`：后台各功能页面（用户、角色、权限、工具、审计、监控等）
+- 工具插件层（每个工具一个目录，按约定自动注册）
+  - [registry.js](smart-tools-frontend/src/tools/registry.js)：扫描 `meta.js/index.vue`，输出工具列表与组件引用
+  - `src/tools/<slug>/meta.js`：工具元信息（用于列表/搜索/分类/排序）
+  - `src/tools/<slug>/index.vue`：工具页面（真正的工具 UI 与处理逻辑一般在这里）
+- 组件层（复用 UI 与“通用工具基座”）
+  - `src/components/*`：卡片、分页、通用文件工具、图表工具基座、登录弹窗等
+- 国际化与样式
+  - [useI18n.js](smart-tools-frontend/src/composables/useI18n.js) + [messages.js](smart-tools-frontend/src/i18n/messages.js)
+  - `src/styles/index.css`：Tailwind 基础样式与全局样式
+
+## 典型流程（前后端怎么串起来）
+
+- 打开首页
+  - `HomePage` 调用 `toolCatalog.ensureLoaded()` → 先渲染本地工具目录 → 再异步拉取后端 `/api/tools` 覆盖配置
+- 打开工具详情页 `/tools/:slug`
+  - `router` 守卫要求登录 → 未登录会跳回首页并加 `?login=1&redirect=...` → `AppLayout` 监听 query 打开登录弹窗
+  - 登录成功后回跳到 `redirect`，`ToolPage` 通过 `catalogStore.bySlug(slug)` 找到 `component` 动态渲染
+  - 同时上报访问：`/api/logs/visit`，并拉取统计/评论：`/api/tools/:slug/stats`、`/api/tools/:slug/comments`
+
+## 环境要求
+
+- Node.js（建议使用 LTS 版本）
+- npm
+
+## 快速开始
+
+在仓库根目录进入前端目录：
 
 ```bash
-cd C:\Users\30274\Desktop\xxm\test_vue
+cd smart-tools-frontend
 npm install
 ```
 
-## 本地启动
+启动开发服务：
 
 ```bash
-cd C:\Users\30274\Desktop\xxm\test_vue
 npm run serve
 ```
 
-- 前端默认端口：5173（见 [vue.config.js](file:///c:/Users/30274/Desktop/xxm/test_vue/vue.config.js)）
-- 已配置代理：`/api` -> `http://localhost:8080`
+默认访问：
 
-## 工具模块约定
+- 前端：http://localhost:5173
 
-每个工具一个目录，至少包含：
+## 后端联调（代理 /api）
 
-- `src/tools/<slug>/meta.js`
-- `src/tools/<slug>/index.vue`
+开发环境通过 devServer 代理将 `/api` 与 `/uploads` 转发到后端，避免跨域问题。
 
-工具会被 [registry.js](file:///c:/Users/30274/Desktop/xxm/test_vue/src/tools/registry.js) 自动扫描注册。
+- 默认后端地址：`http://localhost:9090`
+- 可通过环境变量覆盖：`VUE_APP_BACKEND_URL`（构建期注入，Vue CLI 约定以 `VUE_APP_` 开头）
 
-## Project setup
-```
-npm install
-```
+示例（PowerShell）：
 
-### Compiles and hot-reloads for development
-```
+```bash
+$env:VUE_APP_BACKEND_URL="http://localhost:9090"
 npm run serve
 ```
 
-### Compiles and minifies for production
-```
+代理与端口配置见 [vue.config.js](./vue.config.js)。
+
+## 需要的后端接口（约定）
+
+前端默认假设后端提供以下能力（接口名以当前代码为准）：
+
+- 认证：`/api/auth/*`（验证码、密码登录、OTP、微信扫码、refresh、logout）
+- 用户：`/api/me/*`（个人资料、设置、收藏、最近使用等）
+- 工具：`/api/tools`、`/api/tools/:slug/stats`、`/api/tools/:slug/comments`、`/api/tools/:slug/like`
+- 日志：`/api/logs/visit`、`/api/logs/error`
+- 管理后台：`/api/admin/*`（用户/角色/权限/工具/监控/审计等）
+
+## 站点标题（浏览器 Tab Title）
+
+全站默认标题由 Vue CLI 的 pages 配置提供：
+
+- 配置位置：[vue.config.js](./vue.config.js) 的 `pages.index.title`
+- HTML 模板兜底：[public/index.html](./public/index.html)
+
+如需修改站点标题，优先修改 `pages.index.title`。
+
+## 工具模块约定（新增工具）
+
+每个工具一个目录（slug 作为目录名），至少包含：
+
+- `src/tools/<slug>/meta.js`：工具元信息（名称、分类等）
+- `src/tools/<slug>/index.vue`：工具页面组件
+
+工具会由 `src/tools/registry.js` 统一注册与渲染。新增工具后，通常不需要手动改路由。
+
+### meta.js 字段建议
+
+`meta.js` 默认导出一个对象，常用字段：
+
+- `slug`：与目录名一致（路由参数也是它）
+- `name`：展示名称
+- `category`：分类（用于侧边栏与筛选）
+- `description`：卡片/详情页描述
+- `keywords`：搜索关键字数组
+- `enabled`：可选；`false` 表示下线（不会出现在列表里）
+- `sortOrder`：可选；同分类下排序权重（数字越小越靠前）
+
+示例见：[uuid-generator meta.js](smart-tools-frontend/src/tools/uuid-generator/meta.js)。
+
+## 构建与部署
+
+构建：
+
+```bash
+cd smart-tools-frontend
 npm run build
 ```
 
-### Lints and fixes files
+构建产物输出到 `smart-tools-frontend/dist/`。将 `dist` 目录部署到静态站点即可（Nginx、对象存储、CDN 等）。
+
+### SPA 回退（history 模式）
+
+项目使用 `createWebHistory()`，静态服务器需要配置回退到 `index.html`。
+
+Nginx 示例：
+
+```nginx
+server {
+  listen 80;
+  server_name _;
+
+  root /var/www/smart-tools-frontend/dist;
+  index index.html;
+
+  location / {
+    try_files $uri $uri/ /index.html;
+  }
+}
 ```
+
+## 常用命令
+
+```bash
+npm run serve
+npm run build
 npm run lint
 ```
 
-### Customize configuration
-See [Configuration Reference](https://cli.vuejs.org/config/).
+## 常见问题
+
+### 访问后端报错“后端不可用”
+
+前端 `http` 层会把网络类错误统一提示为“后端不可用…”。优先检查：
+
+- 后端是否启动、端口是否为 `9090`
+- 是否正确配置了 `VUE_APP_BACKEND_URL`
+- 是否确实通过前端访问（开发环境应访问 `http://localhost:5173`，由 devServer 代理转发 `/api`）
+
+### 为什么工具页需要登录？
+
+路由守卫对 `/tools/:slug` 设置了 `requiresAuth`，未登录会回到首页并自动弹出登录弹窗（通过 `?login=1` 触发）。
